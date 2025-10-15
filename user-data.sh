@@ -14,11 +14,6 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 unzip awscliv2.zip
 ./aws/install
 
-echo "🐳 Installing Docker..."
-apt install -y docker.io
-systemctl enable docker
-systemctl start docker
-usermod -aG docker ubuntu
 
 # -------- CONFIG --------
 AWS_REGION="eu-west-1"
