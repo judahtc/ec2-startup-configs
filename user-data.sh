@@ -6,13 +6,17 @@ echo "📦 Updating system packages..."
 apt update -y
 apt upgrade -y
 
-echo "🐍 Installing Python and AWS CLI..."
-apt install -y python3 python3-pip unzip curl
+echo "🐳 Installing Docker..."
+sudo apt install -y docker.io
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker $USER
 
 # Install AWS CLI v2
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-./aws/install
+# curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+# unzip awscliv2.zip
+# ./aws/install
+
 
 
 # -------- CONFIG --------
