@@ -1,53 +1,60 @@
 #!/bin/bash
 set -e
-
-# -------- CONFIG --------
-AWS_REGION="eu-west-1"
-AWS_ACCOUNT_ID="165194454526"
-REPO_NAME="docker-ec2-test"
-TAG="latest"
-# ------------------------
+exec > >(tee -a /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
 
 echo "📦 Updating system packages..."
-sudo apt update -y
-sudo apt upgrade -y
+# Wait for any cloud-init or apt locks to clear
+while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+  echo "🔒 Waiting for other apt processes to finish..."
+  sleep 5
+done
 
-echo "🐳 Installing Docker..."
-sudo apt install -y docker.io
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker $USER
+export DEBIAN_FRONTEND=noninteractive
+sudo apt-get update -y
+sudo apt-get upgrade -yq
 
-echo " Installing Python and pip..."
-sudo apt install -y python3 python3-pip
+echo "🐍 Installing Python and AWS CLI..."
+sudo apt-get install -y python3 python3-pip unzip curl ruby wget docker.io
 
-echo " Installing AWS CLI..."
-# Download the AWS CLI v2 installer
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+# Install AWS CLI v2 safely
+echo "⬇️ Installing AWS CLI v2..."
+cd /tmp
+curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip -q awscliv2.zip
+sudo ./aws/install || true
+rm -rf aws awscliv2.zip
 
-# Install unzip if not already installed
-sudo apt update && sudo apt install -y unzip
-
-# Unzip the installer
-unzip awscliv2.zip
-
-# Run the installer
-sudo ./aws/install
-
-# Verify installation
-aws --version
-
-echo " Versions:"
-docker --version
-python3 --version
-pip3 --version
-aws --version
+# -------- CONFIG --------
+AWS_REGION="us-east-1"
+AWS_ACCOUNT_ID="637423647279"
+REPO_NAME="innbucks_service"
+TAG="latest"
+PORT=8083
+# ------------------------
 
 echo "🔑 Logging in to Amazon ECR..."
-aws ecr get-login-password --region $AWS_REGION | \
-docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+aws ecr get-login-password --region "$AWS_REGION" | sudo docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
-echo " Pulling image from ECR..."
-docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG
+echo "📦 Pulling image from ECR..."
+sudo docker pull "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG"
 
-echo "🎉 Done! Image pulled successfully from ECR."
+# Stop old container if it exists
+CONTAINER_ID=$(sudo docker ps -q --filter "publish=${PORT}")
+if [ -n "$CONTAINER_ID" ]; then
+    echo "🛑 Stopping old container..."
+    sudo docker stop "$CONTAINER_ID"
+    sudo docker rm "$CONTAINER_ID"
+fi
+
+echo "🚀 Starting container..."
+sudo docker run -d -p ${PORT}:${PORT} "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG"
+
+echo "🪄 Installing CodeDeploy agent..."
+cd /home/ubuntu
+wget -q "https://aws-codedeploy-$AWS_REGION.s3.$AWS_REGION.amazonaws.com/latest/install"
+chmod +x ./install
+sudo ./install auto
+sudo systemctl enable codedeploy-agent
+sudo systemctl start codedeploy-agent
+
+echo "✅ Setup complete!"
