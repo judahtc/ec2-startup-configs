@@ -16,9 +16,9 @@ unzip awscliv2.zip
 
 
 # -------- CONFIG --------
-AWS_REGION="eu-west-1"
-AWS_ACCOUNT_ID="419772637660"
-REPO_NAME="atapi"
+AWS_REGION="us-east-1"
+AWS_ACCOUNT_ID="637423647279"
+REPO_NAME="innbucks_service"
 TAG="latest"
 # ------------------------
 
@@ -29,7 +29,7 @@ echo "📦 Pulling image from ECR..."
 docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG
 
 # Stop old container if it exists
-PORT=8000
+PORT=8083
 CONTAINER_ID=$(docker ps -q --filter "publish=${PORT}")
 if [ -n "$CONTAINER_ID" ]; then
     echo "🛑 Stopping old container..."
@@ -38,7 +38,7 @@ if [ -n "$CONTAINER_ID" ]; then
 fi
 
 echo "🚀 Starting container..."
-docker run -d -p 8000:8000 $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG
+docker run -d -p 8083:8083 $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO_NAME:$TAG
 
 echo "🪄 Installing CodeDeploy agent..."
 apt install -y ruby wget
